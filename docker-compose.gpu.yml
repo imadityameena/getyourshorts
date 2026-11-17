@@ -1,0 +1,25 @@
+# NVIDIA override. Needs the NVIDIA Container Toolkit.
+# `runtime: nvidia` works with snap Docker, where `--gpus` / device requests are rejected.
+services:
+  api:
+    build:
+      context: ./backend
+      target: gpu
+    image: shorts-backend:gpu
+    runtime: nvidia
+    environment:
+      STORAGE_DIR: /data
+      HOME: /tmp
+      NVIDIA_VISIBLE_DEVICES: all
+
+  worker:
+    build:
+      context: ./backend
+      target: gpu
+    image: shorts-backend:gpu
+    runtime: nvidia
+    environment:
+      STORAGE_DIR: /data
+      HOME: /tmp
+      USE_GPU: "true"
+      NVIDIA_VISIBLE_DEVICES: all

@@ -37,3 +37,11 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 # ---- dev / CI image: adds test + lint tooling ---------------------------------
 FROM base AS dev
 RUN pip install ".[ml,dev]"
+
+# ---- GPU image: CUDA libraries for faster-whisper (CTranslate2) --------------
+# NVENC encoding needs nothing extra: Debian's ffmpeg loads the driver's libnvidia-encode.
+FROM base AS gpu
+RUN pip install "nvidia-cublas-cu12" "nvidia-cudnn-cu12==9.*"
+ENV LD_LIBRARY_PATH=/usr/local/lib/python3.12/site-packages/nvidia/cublas/lib:/usr/local/lib/python3.12/site-packages/nvidia/cudnn/lib \
+    USE_GPU=true \
+    NVIDIA_DRIVER_CAPABILITIES=compute,video,utility
