@@ -39,6 +39,13 @@ Include exactly one entry per candidate id."""
 _ratings_adapter = TypeAdapter(list[LLMRating])
 
 
+RETRYABLE_STATUS = {408, 429, 500, 502, 503, 504}
+
+
+class _Retryable(Exception):
+    """Rate limit / server hiccup: worth retrying with backoff."""
+
+
 class Provider(Protocol):
     name: str
 
@@ -55,9 +62,14 @@ class _HttpProvider:
     def _post(self, url: str, payload: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]:
         def _do() -> dict[str, Any]:
             r = self.client.post(url, json=payload, headers=headers)
-            if r.status_code in (429, 500, 502, 503, 504):
-                r.raise_for_status()  # retryable
-            r.raise_for_status()
+            if r.status_code in RETRYABLE_STATUS:
+                raise _Retryable(f"{self.name} HTTP {r.status_code}: {r.text[:200]}")
+            if r.is_error:  # 4xx (bad key, unknown model…) won't fix itself: fail fast
+                raise httpx.HTTPStatusError(
+                    f"{self.name} HTTP {r.status_code}: {r.text[:300]}",
+                    request=r.request,
+                    response=r,
+                )
             data: dict[str, Any] = r.json()
             return data
 
@@ -65,7 +77,7 @@ class _HttpProvider:
             _do,
             attempts=3,
             base_delay=3.0,
-            retry_on=(httpx.TransportError, httpx.HTTPStatusError),
+            retry_on=(httpx.TransportError, _Retryable),
             what=f"llm:{self.name}",
         )
 

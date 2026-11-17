@@ -108,3 +108,44 @@ def test_rate_batches() -> None:
     assert p.calls == 3
     assert seen == [(1, 3), (2, 3), (3, 3)]
     assert len(res.ratings) == 25
+
+
+def test_http_retries_only_transient_errors() -> None:
+    import httpx
+
+    from app.pipeline.analyze.llm import GroqProvider
+
+    calls = {"n": 0}
+
+    def handler(status: int):  # type: ignore[no-untyped-def]
+        def _h(request: httpx.Request) -> httpx.Response:
+            calls["n"] += 1
+            return httpx.Response(status, json={"error": "x"})
+
+        return _h
+
+    for status, expected_calls in ((404, 1), (401, 1)):
+        calls["n"] = 0
+        p = GroqProvider("k", "m", 5)
+        p.client = httpx.Client(transport=httpx.MockTransport(handler(status)))
+        with pytest.raises(httpx.HTTPStatusError):
+            p.complete("s", "u")
+        assert calls["n"] == expected_calls
+
+
+def test_http_retries_rate_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    import httpx
+
+    from app.pipeline.analyze.llm import GroqProvider
+
+    monkeypatch.setattr("app.core.retry.time.sleep", lambda _s: None)
+    responses = iter([429, 503, 200])
+
+    def _h(request: httpx.Request) -> httpx.Response:
+        code = next(responses)
+        body = {"choices": [{"message": {"content": "{}"}}]} if code == 200 else {}
+        return httpx.Response(code, json=body)
+
+    p = GroqProvider("k", "m", 5)
+    p.client = httpx.Client(transport=httpx.MockTransport(_h))
+    assert p.complete("s", "u") == "{}"

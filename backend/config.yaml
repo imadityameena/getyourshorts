@@ -31,9 +31,9 @@ llm:
   timeout_s: 60
   providers:                      # tried in order; providers without a key are skipped
     - name: gemini
-      model: gemini-2.5-flash
+      model: gemini-3.5-flash        # newest Flash models often return 503 under load
     - name: groq
-      model: llama-3.3-70b-versatile
+      model: openai/gpt-oss-120b
     - name: ollama
       model: qwen2.5:7b
 
