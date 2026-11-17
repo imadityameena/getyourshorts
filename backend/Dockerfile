@@ -1,0 +1,39 @@
+# CPU image (default). For NVIDIA GPUs use Dockerfile.gpu via docker-compose.gpu.yml.
+FROM python:3.12-slim-bookworm AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    HF_HOME=/data/.models/hf
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ffmpeg fontconfig libgl1 libglib2.0-0 curl \
+ && rm -rf /var/lib/apt/lists/*
+
+# Caption font (SIL Open Font License)
+RUN mkdir -p /usr/share/fonts/truetype/montserrat \
+ && for w in Bold ExtraBold Black; do \
+      curl -fsSL -o /usr/share/fonts/truetype/montserrat/Montserrat-$w.ttf \
+        "https://raw.githubusercontent.com/JulietaUla/Montserrat/master/fonts/ttf/Montserrat-$w.ttf"; \
+    done \
+ && fc-cache -f
+
+WORKDIR /app
+COPY pyproject.toml ./
+# Install dependencies first (cached layer), then the code.
+RUN mkdir app && touch app/__init__.py \
+ && pip install ".[ml]" \
+ && rm -rf app
+
+COPY . .
+RUN pip install --no-deps .
+
+ENV STORAGE_DIR=/data
+VOLUME ["/data"]
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# ---- dev / CI image: adds test + lint tooling ---------------------------------
+FROM base AS dev
+RUN pip install ".[ml,dev]"

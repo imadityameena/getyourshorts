@@ -1,0 +1,60 @@
+# Tunable knobs. Changing anything under `selection` or `render` invalidates cached
+# results for new jobs (it is part of the settings hash).
+
+limits:
+  max_video_minutes: 180          # F1: reject videos longer than this (overridable by env)
+  max_download_height: 1080
+  min_free_disk_gb: 3
+  download_timeout_s: 1800
+  ffmpeg_timeout_s: 900
+
+selection:
+  weights:                        # must sum to 1.0; H is redistributed when no heatmap exists
+    heatmap: 0.35
+    ai_virality: 0.40
+    hook: 0.10
+    audio: 0.08
+    pace: 0.04
+    visual: 0.03
+  prefilter_top_k: 40             # candidates sent to the AI
+  prefilter_max_overlap: 0.6      # diversity during prefilter
+  max_overlap: 0.2                # final overlap allowed between chosen clips
+  pad_start_s: 0.15
+  pad_end_s: 0.30
+  max_inner_silence_s: 0.6
+  sentence_gap_s: 1.2             # a pause this long ends a sentence even without punctuation
+  target_wps: 3.0                 # words/second considered "full pace"
+  max_cuts_per_min: 12
+
+llm:
+  batch_size: 10
+  timeout_s: 60
+  providers:                      # tried in order; providers without a key are skipped
+    - name: gemini
+      model: gemini-2.5-flash
+    - name: groq
+      model: llama-3.3-70b-versatile
+    - name: ollama
+      model: qwen2.5:7b
+
+render:
+  fps: 30
+  width: 1080
+  height: 1920
+  sample_fps: 5                   # face-detection sampling rate
+  ema_alpha: 0.2
+  dead_zone: 0.10                 # move crop only if face drifts >10% of crop width
+  max_face_gap_s: 1.0             # longer gaps → blurred background
+  max_parallel_cpu: 2
+  max_parallel_gpu: 3
+
+captions:
+  max_words: 3
+  font: Montserrat
+  font_size: 84
+  outline: 4
+  margin_v: 560                   # px from bottom; keeps captions above the Shorts UI
+  styles:
+    bold:    { primary: "FFFFFF", highlight: "00E5FF", uppercase: true }
+    neon:    { primary: "FFFFFF", highlight: "39FF14", uppercase: true }
+    minimal: { primary: "FFFFFF", highlight: "FFFFFF", uppercase: false }

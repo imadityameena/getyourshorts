@@ -1,0 +1,77 @@
+[project]
+name = "shorts-generator"
+version = "0.1.0"
+description = "Turn a YouTube video into ready-to-upload vertical Shorts."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlmodel>=0.0.22",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+    "pyyaml>=6.0",
+    "huey>=2.5",
+    "httpx>=0.27",
+    "structlog>=24.1",
+    "numpy>=1.26",
+    "yt-dlp>=2025.1.1",
+]
+
+[project.optional-dependencies]
+# Heavy media/ML stack. Imported lazily, so the API and unit tests run without it.
+ml = [
+    "faster-whisper>=1.1",
+    "mediapipe>=0.10.14",
+    "opencv-python-headless>=4.9",
+    "scenedetect>=0.6.4",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "mypy>=1.11",
+    "ruff>=0.6",
+    "pre-commit>=3.7",
+    "types-PyYAML",
+]
+
+[project.scripts]
+shorts = "app.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "N", "PTH"]
+ignore = ["B008", "N818", "RUF001", "RUF002", "RUF003", "RUF007"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["E501"]
+"tests/conftest.py" = ["E402", "E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["yt_dlp.*", "faster_whisper.*", "mediapipe.*", "cv2.*", "scenedetect.*", "huey.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["app.worker.tasks"]
+disallow_untyped_decorators = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: needs ffmpeg (and is slower)"]
+
+[tool.coverage.run]
+source = ["app"]
