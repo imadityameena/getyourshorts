@@ -35,3 +35,13 @@ services:
       STORAGE_DIR: /data
       HOME: /tmp
       USE_GPU: "false"
+
+  frontend:
+    build:
+      context: ./frontend
+    image: shorts-frontend:latest
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api
+    restart: unless-stopped
