@@ -34,10 +34,33 @@ MAX_RETRIES = 2
 
 @huey.on_startup()
 def _resume_interrupted() -> None:
+    """Recover from a crash/restart.
+
+    - Locks live in the SQLite queue, so a worker killed mid-job leaves its lock
+      behind; with a single worker no lock can be legitimately held at startup.
+    - Jobs marked running were interrupted; jobs marked queued may have lost their
+      task (e.g. it exhausted retries on a stale lock). Re-enqueue any job that
+      has no pending or scheduled task. Work resumes from the on-disk stage cache.
+    """
     init_db()
+    flushed = huey.flush_locks()
+    if flushed:
+        log.info("flushed_stale_locks", locks=sorted(flushed))
+    already = {
+        t.args[0]
+        for t in [*huey.pending(), *huey.scheduled()]
+        if getattr(t, "name", "").endswith("process_job") and t.args
+    }
     with Session(get_engine()) as s:
-        stuck = s.exec(select(Job).where(col(Job.status) == JobStatus.RUNNING)).all()
-        for job in stuck:
+        jobs = s.exec(
+            select(Job).where(col(Job.status).in_([JobStatus.RUNNING, JobStatus.QUEUED]))
+        ).all()
+        for job in jobs:
+            if job.id in already:
+                continue
+            # Per-job lock names are created at runtime, so flush_locks() above can't
+            # see locks left by a previous process. Clear this job's lock explicitly.
+            huey.lock_task(f"job-{job.id}").clear()
             log.info("resuming_interrupted_job", job_id=job.id, stage=job.stage)
             crud.update_job(s, job.id, status=JobStatus.QUEUED, stage="resuming")
             process_job(job.id)
