@@ -186,7 +186,10 @@ class Runner:
                 batch_size=self.cfg.llm.batch_size,
                 on_batch=lambda i, n: self._progress("analyzing", 0.3 + 0.7 * i / n),
             )
-            write_model(jp.llm, res)
+            if res.ratings:  # an all-failed result isn't cached, so a rerun tries the AI again
+                write_model(jp.llm, res)
+            else:
+                log.warning("ai_ranking_unavailable", providers=[p.name for p in providers])
         return sl.candidates, res
 
     # 4 ---------------------------------------------------------------------

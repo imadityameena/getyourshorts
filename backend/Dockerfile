@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HF_HOME=/data/.models/hf
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends ffmpeg fontconfig libgl1 libglib2.0-0 curl \
+ && apt-get install -y --no-install-recommends ffmpeg fontconfig libgl1 libegl1 libgles2 libglib2.0-0 curl \
  && rm -rf /var/lib/apt/lists/*
 
 # Caption font (SIL Open Font License)
@@ -27,9 +27,10 @@ RUN mkdir app && touch app/__init__.py \
  && rm -rf app
 
 COPY . .
-RUN pip install --no-deps .
-
-ENV STORAGE_DIR=/data
+# Run from source (not site-packages) so config.yaml and assets resolve next to the code.
+ENV PYTHONPATH=/app \
+    CONFIG_PATH=/app/config.yaml \
+    STORAGE_DIR=/data
 VOLUME ["/data"]
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

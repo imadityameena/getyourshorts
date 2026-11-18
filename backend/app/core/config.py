@@ -129,9 +129,17 @@ class Settings(BaseSettings):
 
 
 def load_app_config(path: Path) -> AppConfig:
-    raw: dict[str, Any] = {}
-    if path.exists():
-        raw = yaml.safe_load(path.read_text()) or {}
+    if not path.exists():
+        # Defaults have no AI providers, so this would silently disable AI ranking.
+        import logging
+
+        logging.getLogger("config").error(
+            "config.yaml not found at %s; using built-in defaults (no AI providers). "
+            "Set CONFIG_PATH.",
+            path,
+        )
+        return AppConfig()
+    raw: dict[str, Any] = yaml.safe_load(path.read_text()) or {}
     return AppConfig.model_validate(raw)
 
 
