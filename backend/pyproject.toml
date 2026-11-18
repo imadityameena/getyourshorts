@@ -22,7 +22,7 @@ dependencies = [
 ml = [
     "faster-whisper>=1.1",
     "mediapipe>=0.10.14",
-    "opencv-python-headless>=4.9",
+    "opencv-contrib-python-headless>=4.9",  # contrib: keeps the Haar fallback in OpenCV 5
 ]
 dev = [
     "pytest>=8.0",

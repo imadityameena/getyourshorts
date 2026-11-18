@@ -89,8 +89,15 @@ def get_detector() -> Detector:
         log.warning("mediapipe_unavailable_using_haar", error=str(e))
         import cv2
 
-        haar_dir: str = cv2.data.haarcascades  # type: ignore[attr-defined]
-        cascade = cv2.CascadeClassifier(haar_dir + "haarcascade_frontalface_default.xml")
+        # OpenCV 5 moved Haar cascades out of the base package (they remain in the
+        # contrib build MediaPipe installs). Look them up dynamically and, if absent,
+        # detect nothing: the clip then falls back to blurred-background framing.
+        cascade_cls: Any = getattr(cv2, "CascadeClassifier", None)
+        haar_dir: str | None = getattr(getattr(cv2, "data", None), "haarcascades", None)
+        if cascade_cls is None or haar_dir is None:
+            log.warning("no_face_detector_available")
+            return lambda _frame: []
+        cascade = cascade_cls(haar_dir + "haarcascade_frontalface_default.xml")
 
         def _haar(frame_bgr: Any) -> list[Box]:
             h, w = frame_bgr.shape[:2]
