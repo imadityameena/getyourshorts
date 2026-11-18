@@ -46,6 +46,10 @@ class VideoPaths:
     def signals(self) -> Path:
         return self.root / "signals.json"
 
+    @property
+    def scenes(self) -> Path:
+        return self.root / "scenes.json"
+
 
 @dataclass(frozen=True)
 class JobPaths:

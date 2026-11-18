@@ -70,6 +70,10 @@ class Transcript(BaseModel):
 # ---- analyze -------------------------------------------------------------
 
 
+class SceneCuts(BaseModel):
+    cuts: list[float]
+
+
 class Signals(BaseModel):
     """Video-level signals, independent of job settings."""
 

@@ -22,6 +22,7 @@ from app.pipeline.models import (
     LLMResult,
     RenderedClip,
     RenderResult,
+    SceneCuts,
     Selection,
     Shortlist,
     Signals,
@@ -91,8 +92,9 @@ class Runner:
         with ThreadPoolExecutor(max_workers=1, thread_name_prefix="scenes") as bg:
             meta = self.stage_fetch(vp)
             if load_valid(vp.signals, Signals) is None:
-                # scene detection is CPU-bound; overlap it with (GPU) transcription
-                self._scene_future = bg.submit(detect_cuts, vp.source)
+                # scene detection is CPU-bound; overlap it with (GPU) transcription.
+                # Its result is cached separately, so a transcription retry never redoes it.
+                self._scene_future = bg.submit(self._scene_cuts, vp)
             transcript = self.stage_transcribe(vp)
             signals = self.stage_signals(vp, meta)
         shortlisted, llm_result = self.stage_ai(jp, transcript, signals, meta)
@@ -121,10 +123,24 @@ class Runner:
         from app.pipeline.transcribe import transcribe
 
         with log_stage("transcribe"):
-            t = transcribe(vp.audio, self.env.resolved_whisper_model, self.env.use_gpu)
+            t = transcribe(
+                vp.audio,
+                self.env.resolved_whisper_model,
+                self.env.use_gpu,
+                on_progress=lambda f: self._progress("transcribing", f),
+            )
             write_model(vp.transcript, t)
         self._progress("transcribing", 1)
         return t
+
+    def _scene_cuts(self, vp: VideoPaths) -> list[float]:
+        cached = load_valid(vp.scenes, SceneCuts)
+        if cached is not None:
+            return cached.cuts
+        with log_stage("scenes"):
+            cuts = detect_cuts(vp.source, timeout=self.cfg.limits.ffmpeg_timeout_s)
+            write_model(vp.scenes, SceneCuts(cuts=cuts))
+        return cuts
 
     # 3a --------------------------------------------------------------------
     def stage_signals(self, vp: VideoPaths, meta: VideoMeta) -> Signals:
@@ -134,7 +150,7 @@ class Runner:
             return cached
         with log_stage("signals"):
             rms = rms_envelope(vp.audio, RMS_HOP_S)
-            cuts = self._scene_future.result() if self._scene_future else detect_cuts(vp.source)
+            cuts = self._scene_future.result() if self._scene_future else self._scene_cuts(vp)
             sig = Signals(
                 duration=meta.duration or len(rms) * RMS_HOP_S,
                 heatmap=meta.heatmap,

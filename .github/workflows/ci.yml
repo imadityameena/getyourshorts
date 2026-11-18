@@ -26,7 +26,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - name: Install package
         # The heavy ML stack (Whisper, MediaPipe) is imported lazily and mocked in tests.
-        run: pip install -e ".[dev]" opencv-python-headless scenedetect
+        run: pip install -e ".[dev]" opencv-python-headless
       - name: Lint
         run: ruff check . && ruff format --check .
       - name: Type-check

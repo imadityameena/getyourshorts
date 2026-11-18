@@ -23,7 +23,6 @@ ml = [
     "faster-whisper>=1.1",
     "mediapipe>=0.10.14",
     "opencv-python-headless>=4.9",
-    "scenedetect>=0.6.4",
 ]
 dev = [
     "pytest>=8.0",
@@ -62,7 +61,7 @@ strict = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["yt_dlp.*", "faster_whisper.*", "mediapipe.*", "cv2.*", "scenedetect.*", "huey.*"]
+module = ["yt_dlp.*", "faster_whisper.*", "mediapipe.*", "cv2.*", "huey.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
